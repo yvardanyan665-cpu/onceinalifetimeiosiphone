@@ -16,7 +16,9 @@ jobs:
 
       - name: Download Game Media
         run: |
-          curl -L --retry 5 --retry-delay 5 -o game.zip "https://drive.google.com/uc?export=download&id=1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY"
+          # Օգտագործում ենք հատուկ հրաման մեծ ֆայլերի հաստատումը շրջանցելու համար
+          CONFIRM=$(curl -sc /tmp/cookies.txt "https://drive.google.com/uc?export=download&id=1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY" | grep -o 'confirm=[^&]*' | head -n 1)
+          curl -Lb /tmp/cookies.txt "https://drive.google.com/uc?export=download&${CONFIRM}&id=1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY" -o game.zip
           unzip -q game.zip -d mygame
           
       - name: Build iOS App
