@@ -1,0 +1,32 @@
+name: Build Ren'Py iOS Game
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Ren'Py
+        run: |
+          curl -L -o renpy.zip https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip
+          unzip -q renpy.zip
+          mv renpy-8.3.3-sdk renpy-sdk
+
+      - name: Setup Game Project
+        run: |
+          mkdir -p mygame/game
+          cp -r *.rpy mygame/game/
+          
+      - name: Build iOS App
+        run: |
+          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame
+          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_build mygame --destination build
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: onceinalifetime-ios-ipa
+          path: build/*.ipa
