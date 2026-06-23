@@ -8,16 +8,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
+      - name: Install wget
+        run: brew install wget
 
-      - name: Install Ren'Py via PIP
+      - name: Install Ren'Py
         run: |
-          pip install renpy
-          
-          ln -s $(python -c "import renpy; import os; print(os.path.dirname(renpy.__file__))") renpy-sdk
+          wget -t 10 --retry-connrefused --waitretry=5 https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip -O renpy.zip
+          unzip -q renpy.zip
+          mv renpy-8.3.3-sdk renpy-sdk
 
       - name: Download Game Media
         run: |
@@ -27,8 +25,8 @@ jobs:
           
       - name: Build iOS App
         run: |
-          python -m renpy renpy-sdk/launcher ios_populate mygame
-          python -m renpy renpy-sdk/launcher ios_build mygame --destination build
+          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame
+          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_build mygame --destination build
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
