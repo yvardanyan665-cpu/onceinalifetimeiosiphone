@@ -10,14 +10,13 @@ jobs:
 
       - name: Install Ren'Py
         run: |
-          curl -L -o renpy.zip https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip
+          curl -L --retry 5 --retry-delay 5 -o renpy.zip https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
       - name: Download Game Media
         run: |
-          # Քաշում ենք խաղը քո Google Drive-ից
-          curl -L -o game.zip "https://drive.google.com/uc?export=download&id=1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY"
+          curl -L --retry 5 --retry-delay 5 -o game.zip "https://drive.google.com/uc?export=download&id=1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY"
           unzip -q game.zip -d mygame
           
       - name: Build iOS App
