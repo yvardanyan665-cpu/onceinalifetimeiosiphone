@@ -10,7 +10,7 @@ jobs:
 
       - name: Install Ren'Py
         run: |
-          # Օգտագործում ենք GitHub-ի հուսալի սերվերը՝ Ren'Py-ն ներբեռնելու համար
+          # Ավելացրինք -L նշանը, որ վերահասցեավորումը ճիշտ կարդա
           curl -L --retry 5 --retry-delay 5 -o renpy.zip https://github.com/renpy/renpy/releases/download/8.3.3/renpy-8.3.3-sdk.zip
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
