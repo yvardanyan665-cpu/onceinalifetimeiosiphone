@@ -10,13 +10,13 @@ jobs:
 
       - name: Install Ren'Py
         run: |
-          curl -L --retry 5 --retry-delay 5 -o renpy.zip https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip
+          # Օգտագործում ենք GitHub-ի հուսալի սերվերը՝ Ren'Py-ն ներբեռնելու համար
+          curl -L --retry 5 --retry-delay 5 -o renpy.zip https://github.com/renpy/renpy/releases/download/8.3.3/renpy-8.3.3-sdk.zip
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
       - name: Download Game Media
         run: |
-          # Օգտագործում ենք հատուկ հրաման մեծ ֆայլերի հաստատումը շրջանցելու համար
           CONFIRM=$(curl -sc /tmp/cookies.txt "https://drive.google.com/uc?export=download&id=1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY" | grep -o 'confirm=[^&]*' | head -n 1)
           curl -Lb /tmp/cookies.txt "https://drive.google.com/uc?export=download&${CONFIRM}&id=1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY" -o game.zip
           unzip -q game.zip -d mygame
