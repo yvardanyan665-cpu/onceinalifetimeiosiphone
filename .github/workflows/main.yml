@@ -6,8 +6,7 @@ jobs:
   build:
     runs-on: macos-13
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Ren'Py
         run: |
@@ -15,17 +14,11 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Download Full Game Media
+      - name: Download Game Media
         run: |
-          # Այստեղ սերվերը ավտոմատ ներբեռնում է խաղի բազան Itch.io-ից
-          curl -L -o full_game.zip "https://caribdis.itch.io/once-in-a-lifetime/devlog/269450/10-public-release" || true
-          # Յուր ջան, եթե ուղիղ ներբեռնման հղում ունես, կարող ենք դնել էստեղ
-          
-      - name: Setup Game Project
-        run: |
-          mkdir -p mygame/game
-          # Կպցնում ենք քո թարգմանած ու փոխած կոդերը խաղի մեջ
-          cp -r *.rpy mygame/game/
+          # Քաշում ենք խաղը քո Google Drive-ից
+          curl -L -o game.zip "https://drive.google.com/uc?export=download&id=1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY"
+          unzip -q game.zip -d mygame
           
       - name: Build iOS App
         run: |
@@ -35,5 +28,5 @@ jobs:
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: onceinalifetime-ios-ipa
+          name: game-ipa
           path: build/*.ipa
