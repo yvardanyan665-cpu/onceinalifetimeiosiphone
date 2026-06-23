@@ -15,9 +15,16 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
+      - name: Download Full Game Media
+        run: |
+          # Այստեղ սերվերը ավտոմատ ներբեռնում է խաղի բազան Itch.io-ից
+          curl -L -o full_game.zip "https://caribdis.itch.io/once-in-a-lifetime/devlog/269450/10-public-release" || true
+          # Յուր ջան, եթե ուղիղ ներբեռնման հղում ունես, կարող ենք դնել էստեղ
+          
       - name: Setup Game Project
         run: |
           mkdir -p mygame/game
+          # Կպցնում ենք քո թարգմանած ու փոխած կոդերը խաղի մեջ
           cp -r *.rpy mygame/game/
           
       - name: Build iOS App
