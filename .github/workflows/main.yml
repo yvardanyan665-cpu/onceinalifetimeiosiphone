@@ -21,7 +21,7 @@ jobs:
 
       - name: Download Game Media
         run: |
-          gdown --id 1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY -O game.zip
+          gdown "https://drive.google.com/uc?id=1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY" -O game.zip
           unzip -q game.zip -d mygame
           
       - name: Build iOS App
