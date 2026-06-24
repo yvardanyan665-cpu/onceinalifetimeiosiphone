@@ -21,24 +21,30 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Fix RenPy iOS Bug System-Wide
+      - name: Hard Patch RenPy iOS Bug
         run: |
-          # 1. Վերականգնում ենք օրիգինալ ios.rpy ֆայլը՝ ջնջելով մեր բոլոր հին ուղղումները
-          cd renpy-sdk
-          git checkout launcher/game/ios.rpy 2>/dev/null || true
-          rm -f launcher/game/ios.rpyc
-          cd ..
+          # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
+          rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Գտնում ենք, թե որտեղ է Ren'Py-ի ներքին Python-ի site-packages պապկան
-          PYTHON_SITE_PACKAGES=$(find renpy-sdk -type d -name "site-packages" | head -n 1)
+          # 2. Ուղղակիորեն փոխարինում ենք սխալ կանչը ճիշտ ներքին կանչով
+          python3 -c "
+          file_path = 'renpy-sdk/launcher/game/ios.rpy'
           
-          # 3. Պատճենում ենք renios մոդուլը ուղիղ համակարգային պապկայի մեջ
-          if [ -d "renpy-sdk/launcher/game/renios" ] && [ -n "$PYTHON_SITE_PACKAGES" ]; then
-            cp -R renpy-sdk/launcher/game/renios "$PYTHON_SITE_PACKAGES/"
-            echo "RenPy iOS bug patched globally in system-wide python!"
-          else
-            echo "Error: Could not find renios or site-packages directory."
-          fi
+          with open(file_path, 'r', encoding='utf-8-sig') as f:
+              content = f.read()
+          
+          # Փոխարինում ենք renios.image.generate-ը ուղիղ լոնչերի մեջ եղած մոդուլի հասցեով
+          old_line = 'renios.image.generate(source, destination, scale)'
+          new_line = 'launcher.game.renios.image.generate(source, destination, scale)'
+          
+          if old_line in content:
+              content = content.replace(old_line, new_line)
+              with open(file_path, 'wb') as f:
+                  f.write(content.encode('utf-8'))
+              print('RenPy iOS bug hot-fixed successfully!')
+          else:
+              print('Target line not found or already patched.')
+          "
 
       - name: Build iOS App
         run: |
