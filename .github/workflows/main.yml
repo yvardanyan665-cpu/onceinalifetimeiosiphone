@@ -23,9 +23,9 @@ jobs:
 
       - name: Build iOS App
         run: |
-          # Խաղը արդեն քո GitHub-ի մեջ պատրաստ սպասում է
-          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame
-          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_build mygame --destination build
+          # Ուղղված հրամանները՝ ճիշտ արգումենտներով
+          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame build
+          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_build mygame build
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
