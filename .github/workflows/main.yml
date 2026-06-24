@@ -8,9 +8,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Ren'Py SDK & Dependencies
+      - name: Install Ren'Py SDK
         run: |
-          # 1. Քաշում ենք Ren'Py SDK-ն
+          # 1. Քաշում ենք միայն Ren'Py SDK-ն՝ առանց ավելորդ pip-երի
           python3 -c "
           import urllib.request
           import sys
@@ -21,32 +21,25 @@ jobs:
           "
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
-          
-          # 2. Տեղադրում ենք Pillow նկարների հետ աշխատելու համար
-          pip3 install Pillow
 
       - name: Bypass RenPy iOS Icon Bug
         run: |
           # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
           rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Ջնջում ենք ios.rpy ֆայլի միջից այն տողը, որը կանչում է սխալ մոդուլը
+          # 2. Փոխարինում ենք սխալ կանչերը մաքուր 'pass'-ով, որ Ren'Py-ն անցնի առաջ
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
           with open(file_path, 'r', encoding='utf-8-sig') as f:
-              lines = f.readlines()
+              content = f.read()
           
-          # Փոխարինում ենք սխալ տողը 'pass'-ով, որ ոչինչ չանի ու առաջ անցնի
-          new_lines = []
-          for line in lines:
-              if 'renios.image.generate' in line or 'launcher.game.renios.image.generate' in line:
-                  new_lines.append('    pass\n')
-              else:
-                  new_lines.append(line)
-                  
+          # Չեզոքացնում ենք սխալ տողի բոլոր հնարավոր տարբերակները
+          content = content.replace('renios.image.generate(source, destination, scale)', '    pass')
+          content = content.replace('launcher.game.renios.image.generate(source, destination, scale)', '    pass')
+          
           with open(file_path, 'wb') as f:
-              f.write(''.join(new_lines).encode('utf-8'))
-          print('RenPy icon generation function bypassed!')
+              f.write(content.encode('utf-8'))
+          print('RenPy icon generation successfully bypassed!')
           "
 
       - name: Build iOS App
