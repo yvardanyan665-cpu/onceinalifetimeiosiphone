@@ -8,12 +8,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Ren'Py SDK
+      - name: Install Dependencies & Ren'Py SDK
         run: |
+          # 1. Տեղադրում ենք անհրաժեշտ Python գրադարանը
+          pip3 install future
+          
+          # 2. Քաշում և տեղադրում ենք Ren'Py-ը
           curl -O https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip
           unzip -q renpy-8.3.3-sdk.zip
           mv renpy-8.3.3-sdk renpy-sdk
-          # Սարքում ենք ֆայլերը գործարկելի
           chmod +x renpy-sdk/renpy.py
 
       - name: Build Game (Headless Mode)
@@ -21,7 +24,8 @@ jobs:
           GAME_PATH=$(find . -type d -name "game" ! -path "*/renpy-sdk/*" | head -n 1)
           PROJECT_DIR=$(dirname "$GAME_PATH")
           
-          # Աշխատեցնում ենք python3-ի միջոցով՝ շրջանցելով permission խնդիրը
+          # Օգտագործում ենք python3 և ավելացնում ենք մեր ընթացիկ պապկան PYTHONPATH-ի մեջ
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/renpy-sdk
           python3 renpy-sdk/renpy.py "$PROJECT_DIR" distribute --package ios --destination ./ios-build
 
       - name: Compile Xcode to IPA
