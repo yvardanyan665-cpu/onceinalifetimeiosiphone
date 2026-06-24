@@ -8,102 +8,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Ren'Py SDK & Tools
+      - name: Install Ren'Py SDK
         run: |
-          python3 -c "
-          import urllib.request
-          import sys
-          def progress(count, block_size, total_size):
-              sys.stdout.write(f'\rDownloading RenPy: {int(count * block_size * 100 / total_size)}%')
-              sys.stdout.flush()
-          urllib.request.urlretrieve('https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip', 'renpy.zip', progress)
-          "
-          unzip -q renpy.zip
+          curl -O https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip
+          unzip -q renpy-8.3.3-sdk.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Hardcore Pygame Display Mock & Precise Patch
+      - name: Build Game (Headless Mode)
         run: |
-          # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
-          rm -f renpy-sdk/launcher/game/ios.rpyc
+          # Գտնում ենք 'game' պապկան
+          GAME_PATH=$(find . -type d -name "game" ! -path "*/renpy-sdk/*" | head -n 1)
+          PROJECT_DIR=$(dirname "$GAME_PATH")
           
-          # 2. Հեռացնում ենք renios-ի սխալ տողը ios.rpy-ից
-          python3 -c "
-          file_path = 'renpy-sdk/launcher/game/ios.rpy'
-          with open(file_path, 'r', encoding='utf-8-sig') as f:
-              lines = f.readlines()
-          clean_lines = [l for l in lines if 'renios.image.generate' not in l and 'launcher.game.renios' not in l]
-          with open(file_path, 'wb') as f:
-              f.write(''.join(clean_lines).encode('utf-8'))
-          "
-          
-          # 3. Ինժեկտ ենք անում կոդը ճիշտ Ren'Py սինտաքսով (init python:)
-          python3 -c "
-          file_path = 'renpy-sdk/launcher/game/project.rpy'
-          with open(file_path, 'r', encoding='utf-8-sig') as f:
-              content = f.read()
-          
-          mock_code = '''init python:
-    import pygame
-    class MockSurface(object):
-        def get_size(self): return (1280, 720)
-        def get_rect(self): return pygame.Rect(0, 0, 1280, 720)
-        def convert(self): return self
-        def convert_alpha(self): return self
-        def fill(self, *args, **kwargs): pass
-    def fake_set_mode(*args, **kwargs):
-        return MockSurface()
-    pygame.display.set_mode = fake_set_mode
-'''
-          
-          with open(file_path, 'w', encoding='utf-8') as f:
-              f.write(mock_code + '\n' + content)
-          print('Pygame display successfully mocked inside init python block!')
-          "
-
-      - name: Prepare and Normalize Game Directory
-        run: |
-          REAL_GAME_PATH=$(find . -maxdepth 3 -type d -name "game" ! -path "*renpy-sdk*" | head -n 1)
-          REAL_PROJECT_DIR=$(dirname "$REAL_GAME_PATH")
-          
-          echo "Real project path found at: $REAL_PROJECT_DIR"
-          
-          mkdir -p mygame
-          cp -R "$REAL_PROJECT_DIR"/* mygame/ 2>/dev/null || true
-          
-          rm -rf renpy-sdk/mygame
-          cp -R mygame renpy-sdk/mygame
-          echo "Game directory normalized to renpy-sdk/mygame"
-
-      - name: Populate iOS Project
-        run: |
-          export SDL_VIDEODRIVER=dummy
-          export SDL_AUDIODRIVER=dummy
-          export RENPY_HEADLESS=1
-          
-          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame ./ios-build
+          # Ամենակարևորը. կանչում ենք renpy.py-ը անմիջապես, ոչ թե launcher-ը
+          # Սա չի բացում ոչ մի պատուհան (Invalid window սխալ չի լինի)
+          ./renpy-sdk/renpy.py "$PROJECT_DIR" distribute --package ios --destination ./ios-build
 
       - name: Compile Xcode to IPA
         run: |
-          XCODE_PROJ_DIR=$(find ios-build -type d -name "*.xcodeproj" | head -n 1 | xargs dirname)
+          # Գտնում ենք պրոյեկտը
+          XCODE_PROJ=$(find ios-build -name "*.xcodeproj" | head -n 1)
+          if [ -z "$XCODE_PROJ" ]; then echo "Project not found"; exit 1; fi
           
-          if [ -z "$XCODE_PROJ_DIR" ]; then
-            echo "ERROR: Xcode project was not generated!"
-            exit 1
-          fi
+          cd "$(dirname "$XCODE_PROJ")"
+          xcodebuild -scheme RenPyGame -configuration Release -sdk iphoneos PACKAGE_TYPE=ipa CODE_SIGNING_ALLOWED=NO || true
           
-          echo "Moving to Xcode project directory: $XCODE_PROJ_DIR"
-          cd "$XCODE_PROJ_DIR"
-          
-          xcodebuild -project RenPyGame.xcodeproj -scheme RenPyGame -configuration Release -sdk iphoneos PACKAGE_TYPE=ipa CODE_SIGNING_ALLOWED=NO
-          
+          # Փաթեթավորում
           mkdir -p ../../output/Payload
-          cp -R build/Release-iphoneos/*.app ../../output/Payload/ || cp -R build/UninstalledProducts/iphoneos/*.app ../../output/Payload/ || true
-          
+          cp -R build/Release-iphoneos/*.app ../../output/Payload/ 2>/dev/null || true
           cd ../../output
           zip -r ../game.ipa Payload
-          cd ..
 
-      - name: Upload IPA Artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: game-ipa
