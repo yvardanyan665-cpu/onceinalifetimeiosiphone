@@ -45,29 +45,31 @@ jobs:
 
       - name: Prepare and Normalize Game Directory
         run: |
-          # Գտնում ենք, թե որտեղ է գտնվում իրական խաղի 'game' պապկան
+          # Գտնում ենք իրական խաղի պապկան
           REAL_GAME_PATH=$(find . -maxdepth 3 -type d -name "game" ! -path "*renpy-sdk*" | head -n 1)
           REAL_PROJECT_DIR=$(dirname "$REAL_GAME_PATH")
           
           echo "Real project path found at: $REAL_PROJECT_DIR"
           
-          # Որպեսզի անունների տարբերություն չլինի, պրոյեկտը պատճենում ենք 'mygame' անունով
           mkdir -p mygame
           cp -R "$REAL_PROJECT_DIR"/* mygame/ 2>/dev/null || true
           
-          # Տեղափոխում ենք այն Ren'Py SDK-ի կողքը, որ ինքը միանգամից տեսնի
           rm -rf renpy-sdk/mygame
           cp -R mygame renpy-sdk/mygame
           echo "Game directory normalized to renpy-sdk/mygame"
 
-      - name: Populate iOS Project
+      - name: Populate iOS Project (Headless Mode)
         run: |
-          # Հիմա արդեն վստահ կանչում ենք 'mygame' անունով, քանի որ այն հաստատ գոյություն ունի
+          # Օգտագործում ենք dummy վիդեոդրայվեր, որ սերվերը էկրան չպահանջի
+          export SDL_VIDEODRIVER=dummy
+          export SDL_AUDIODRIVER=dummy
+          export RENPY_HEADLESS=1
+          
+          # Կանչում ենք ստեղծման հրամանը
           ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame ./ios-build
 
       - name: Compile Xcode to IPA
         run: |
-          # Գտնում ենք Xcode պրոյեկտը ios-build-ի ներսում
           XCODE_PROJ_DIR=$(find ios-build -type d -name "*.xcodeproj" | head -n 1 | xargs dirname)
           
           if [ -z "$XCODE_PROJ_DIR" ]; then
