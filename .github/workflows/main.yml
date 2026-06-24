@@ -8,24 +8,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Tools
+      - name: Install Ren'Py SDK
         run: |
-          brew install wget
-          pip install gdown
-
-      - name: Install Ren'Py
-        run: |
-          wget -t 10 --retry-connrefused --waitretry=5 https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip -O renpy.zip
+          python3 -c "
+          import urllib.request
+          import sys
+          def progress(count, block_size, total_size):
+              sys.stdout.write(f'\rDownloading RenPy: {int(count * block_size * 100 / total_size)}%')
+              sys.stdout.flush()
+          urllib.request.urlretrieve('https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip', 'renpy.zip', progress)
+          "
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Download Game Media
-        run: |
-          gdown "https://drive.google.com/uc?id=1hnBEc0crzs-DJUfBvKKPNiE5WNo-B1uY" -O game.zip
-          unzip -q game.zip -d mygame
-          
       - name: Build iOS App
         run: |
+          # Խաղը արդեն քո GitHub-ի մեջ պատրաստ սպասում է
           ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame
           ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_build mygame --destination build
 
