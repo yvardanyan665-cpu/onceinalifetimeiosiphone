@@ -21,46 +21,40 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Precise Patch RenPy iOS Bug & Disable Auto-Compile
+      - name: Precise Patch RenPy iOS Bug & Headless Fix
         run: |
           # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
           rm -f renpy-sdk/launcher/game/ios.rpyc
-          rm -f renpy-sdk/launcher/game/distribute.rpyc
+          rm -f renpy-sdk/launcher/game/project.rpyc
           
           # 2. Հեռացնում ենք renios-ի սխալ տողը ios.rpy-ից
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
           with open(file_path, 'r', encoding='utf-8-sig') as f:
               lines = f.readlines()
-          
-          clean_lines = []
-          for line in lines:
-              if 'renios.image.generate' in line or 'launcher.game.renios' in line:
-                  continue
-              clean_lines.append(line)
-          
+          clean_lines = [l for l in lines if 'renios.image.generate' not in l and 'launcher.game.renios' not in l]
           with open(file_path, 'wb') as f:
               f.write(''.join(clean_lines).encode('utf-8'))
           "
           
-          # 3. Չեզոքացնում ենք update_dump-ը՝ առանց սփեյսերը խախտելու (տողը սարքում ենք comment)
+          # 3. Թույլ չենք տալիս, որ project.py-ը ֆիզիկապես միացնի խաղի պատուհանը (կանխում ենք Invalid window-ը)
           python3 -c "
-          file_path = 'renpy-sdk/launcher/game/distribute.rpy'
+          file_path = 'renpy-sdk/launcher/game/project.rpy'
           with open(file_path, 'r', encoding='utf-8-sig') as f:
               lines = f.readlines()
           
-          clean_dist_lines = []
+          clean_proj_lines = []
           for line in lines:
-              if 'project.update_dump' in line:
-                  # Ուղղակի տողի սկզբում ավելացնում ենք #, սփեյսերը մնում են նույնությամբ
+              if 'self.launch(' in line:
+                  # Փոխարինում ենք խաղի միացումը դատարկ տողով (pass), որ էկրան չուզի, բայց տվյալները մնան
                   indent = len(line) - len(line.lstrip())
-                  clean_dist_lines.append(line[:indent] + '# ' + line[indent:])
-                  print('Successfully commented out update_dump line!')
+                  clean_proj_lines.append(line[:indent] + 'pass # Bypassed game launch\n')
+                  print('Bypassed self.launch in project.rpy!')
               else:
-                  clean_dist_lines.append(line)
+                  clean_proj_lines.append(line)
           
           with open(file_path, 'wb') as f:
-              f.write(''.join(clean_dist_lines).encode('utf-8'))
+              f.write(''.join(clean_proj_lines).encode('utf-8'))
           "
 
       - name: Prepare and Normalize Game Directory
