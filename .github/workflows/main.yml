@@ -21,35 +21,24 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Fix RenPy iOS Bug Globally
+      - name: Fix RenPy iOS Bug System-Wide
         run: |
-          # 1. Մաքրում ենք հին կոմպիլյացիոն կեշերը
-          rm -f renpy-sdk/launcher/game/ios.rpyc
+          # 1. Վերականգնում ենք օրիգինալ ios.rpy ֆայլը՝ ջնջելով մեր բոլոր հին ուղղումները
+          cd renpy-sdk
+          git checkout launcher/game/ios.rpy 2>/dev/null || true
+          rm -f launcher/game/ios.rpyc
+          cd ..
           
-          # 2. Ստեղծում ենք ուղղակի հղում (symlink) renios-ի համար Ren'Py-ի արմատական թղթապանակում
-          ln -s launcher/game/renios renpy-sdk/renios
+          # 2. Գտնում ենք, թե որտեղ է Ren'Py-ի ներքին Python-ի site-packages պապկան
+          PYTHON_SITE_PACKAGES=$(find renpy-sdk -type d -name "site-packages" | head -n 1)
           
-          # 3. Ուղղում ենք ios.rpy ֆայլը՝ ավելացնելով մաքուր ներմուծում հենց ֆայլի ամենասկզբում՝ առանց տեղաշարժերի (0 spaces)
-          python3 -c "
-          file_path = 'renpy-sdk/launcher/game/ios.rpy'
-          
-          with open(file_path, 'r', encoding='utf-8-sig') as f:
-              content = f.read()
-          
-          # Եթե նախորդ փորձերից խառնվել է կոդը, բերում ենք օրիգինալ տեսքի
-          if 'init -999' in content:
-              content = content.split('sys.modules[\"renios\"] = renios\n\n')[1]
-          if 'import importlib.util' in content:
-              content = content.replace('    import gamedir; import importlib.util; spec = importlib.util.spec_from_file_location(\"renios\", gamedir.gamedir + \"/renios/__init__.py\"); renios = importlib.util.module_from_spec(spec); spec.loader.exec_module(renios); renios.image.generate(source, destination, scale)', 'renios.image.generate(source, destination, scale)')
-          
-          # Ավելացնում ենք ներմուծումը հենց ֆայլի սկզբում՝ 0 սփեյսով (գլոբալ մակարդակով)
-          global_patch = 'python early:\n    import sys\n    import os\n    sys.path.insert(0, os.path.abspath(\"renpy-sdk/launcher/game\"))\n    import renios\n    sys.modules[\"renios\"] = renios\n\n'
-          
-          if 'python early:' not in content:
-              with open(file_path, 'wb') as f:
-                  f.write((global_patch + content).encode('utf-8'))
-          print('Global python early patch applied cleanly!')
-          "
+          # 3. Պատճենում ենք renios մոդուլը ուղիղ համակարգային պապկայի մեջ
+          if [ -d "renpy-sdk/launcher/game/renios" ] && [ -n "$PYTHON_SITE_PACKAGES" ]; then
+            cp -R renpy-sdk/launcher/game/renios "$PYTHON_SITE_PACKAGES/"
+            echo "RenPy iOS bug patched globally in system-wide python!"
+          else
+            echo "Error: Could not find renios or site-packages directory."
+          fi
 
       - name: Build iOS App
         run: |
