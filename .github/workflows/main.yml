@@ -21,34 +21,34 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Fix RenPy iOS Bug and Clear Cache
+      - name: Fix RenPy iOS Bug Globally
         run: |
-          # 1. Մաքրում ենք հին կոմպիլյացիոն ֆայլերը
+          # 1. Մաքրում ենք հին կոմպիլյացիոն կեշերը
           rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Փոխում ենք կոդը այնպես, որ renios-ը ներբեռնվի անմիջապես ֆունկցիայի կատարման ժամանակ
+          # 2. Ստեղծում ենք ուղղակի հղում (symlink) renios-ի համար Ren'Py-ի արմատական թղթապանակում
+          ln -s launcher/game/renios renpy-sdk/renios
+          
+          # 3. Ուղղում ենք ios.rpy ֆայլը՝ ավելացնելով մաքուր ներմուծում հենց ֆայլի ամենասկզբում՝ առանց տեղաշարժերի (0 spaces)
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
           
           with open(file_path, 'r', encoding='utf-8-sig') as f:
               content = f.read()
           
-          # Եթե նախորդ փորձերից մնացել են մեր ավելացրած տողերը, ֆայլը բերում ենք նախնական տեսքի
+          # Եթե նախորդ փորձերից խառնվել է կոդը, բերում ենք օրիգինալ տեսքի
           if 'init -999' in content:
-              # Պարզապես վերականգնում ենք օրիգինալ կոդը՝ ջնջելով մեր հին patch-ը
-              content = content.split('init -999 python:')[1].split('sys.modules[\"renios\"] = renios\n\n')[1]
+              content = content.split('sys.modules[\"renios\"] = renios\n\n')[1]
+          if 'import importlib.util' in content:
+              content = content.replace('    import gamedir; import importlib.util; spec = importlib.util.spec_from_file_location(\"renios\", gamedir.gamedir + \"/renios/__init__.py\"); renios = importlib.util.module_from_spec(spec); spec.loader.exec_module(renios); renios.image.generate(source, destination, scale)', 'renios.image.generate(source, destination, scale)')
           
-          # Կատարում ենք անխոցելի փոխարինում. renios.image.generate-ի փոխարեն ասում ենք՝ թող ինքնուրույն գտնի մոդուլը
-          old_line = 'renios.image.generate(source, destination, scale)'
-          new_line = '    import gamedir; import importlib.util; spec = importlib.util.spec_from_file_location(\"renios\", gamedir.gamedir + \"/renios/__init__.py\"); renios = importlib.util.module_from_spec(spec); spec.loader.exec_module(renios); renios.image.generate(source, destination, scale)'
+          # Ավելացնում ենք ներմուծումը հենց ֆայլի սկզբում՝ 0 սփեյսով (գլոբալ մակարդակով)
+          global_patch = 'python early:\n    import sys\n    import os\n    sys.path.insert(0, os.path.abspath(\"renpy-sdk/launcher/game\"))\n    import renios\n    sys.modules[\"renios\"] = renios\n\n'
           
-          if old_line in content:
-              content = content.replace(old_line, new_line)
+          if 'python early:' not in content:
               with open(file_path, 'wb') as f:
-                  f.write(content.encode('utf-8'))
-              print('Advanced inline patch applied successfully!')
-          else:
-              print('Patch already applied or line not found.')
+                  f.write((global_patch + content).encode('utf-8'))
+          print('Global python early patch applied cleanly!')
           "
 
       - name: Build iOS App
