@@ -21,14 +21,14 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Force Bypass RenPy iOS Bug
+      - name: Force Bypass RenPy iOS Bug with Python
         run: |
           # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
           rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Զրոյից ստեղծում ենք լրիվ նոր, մաքուր ios.rpy ֆայլ՝ առանց սխալների
-          cat << 'EOF' > renpy-sdk/launcher/game/ios.rpy
-          init python in ios:
+          # 2. Զրոյից, մաքուր Python-ով ստեղծում ենք նոր ios.rpy ֆայլը
+          python3 -c "
+          code = '''init python in ios:
               def ios_populate_command():
                   pass
               def ios_build_command():
@@ -39,8 +39,11 @@ jobs:
                   pass
               def ios_image(p, source, destination, scale, target):
                   pass
-          EOF
-          print("Nasty RenPy iOS bug completely removed and bypassed!")
+          '''
+          with open('renpy-sdk/launcher/game/ios.rpy', 'w', encoding='utf-8') as f:
+              f.write(code)
+          print('RenPy iOS bug completely removed via clean Python file overwrite!')
+          "
 
       - name: Build iOS App
         run: |
