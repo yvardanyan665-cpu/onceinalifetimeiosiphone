@@ -1,0 +1,5 @@
+
+label dream:
+    scene dream 1
+    me "dsjs"
+    jump continuation
