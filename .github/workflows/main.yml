@@ -23,24 +23,32 @@ jobs:
 
       - name: Fix RenPy iOS Bug and Clear Cache
         run: |
-          # 1. Մաքրում ենք հին կեշերը
+          # 1. Մաքրում ենք հին կոմպիլյացիոն ֆայլերը
           rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Ուղղում ենք ֆայլը՝ բացառելով Windows-ի անտեսանելի BOM սիմվոլները
+          # 2. Փոխում ենք կոդը այնպես, որ renios-ը ներբեռնվի անմիջապես ֆունկցիայի կատարման ժամանակ
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
           
           with open(file_path, 'r', encoding='utf-8-sig') as f:
               content = f.read()
           
-          patch = 'init -999 python:\n    import renios\n    import sys\n    sys.modules[\"renios\"] = renios\n\n'
+          # Եթե նախորդ փորձերից մնացել են մեր ավելացրած տողերը, ֆայլը բերում ենք նախնական տեսքի
+          if 'init -999' in content:
+              # Պարզապես վերականգնում ենք օրիգինալ կոդը՝ ջնջելով մեր հին patch-ը
+              content = content.split('init -999 python:')[1].split('sys.modules[\"renios\"] = renios\n\n')[1]
           
-          if 'init -999 python:' not in content:
-              full_content = patch + content
-              # Գրում ենք որպես binary (wb)՝ ստույգ utf-8-ով, որ BOM չավելանա
+          # Կատարում ենք անխոցելի փոխարինում. renios.image.generate-ի փոխարեն ասում ենք՝ թող ինքնուրույն գտնի մոդուլը
+          old_line = 'renios.image.generate(source, destination, scale)'
+          new_line = '    import gamedir; import importlib.util; spec = importlib.util.spec_from_file_location(\"renios\", gamedir.gamedir + \"/renios/__init__.py\"); renios = importlib.util.module_from_spec(spec); spec.loader.exec_module(renios); renios.image.generate(source, destination, scale)'
+          
+          if old_line in content:
+              content = content.replace(old_line, new_line)
               with open(file_path, 'wb') as f:
-                  f.write(full_content.encode('utf-8'))
-          print('RenPy iOS global patch injected with clean UTF-8!')
+                  f.write(content.encode('utf-8'))
+              print('Advanced inline patch applied successfully!')
+          else:
+              print('Patch already applied or line not found.')
           "
 
       - name: Build iOS App
