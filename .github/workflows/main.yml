@@ -26,19 +26,21 @@ jobs:
           # 1. Մաքրում ենք հին կեշերը
           rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Ֆայլի ամենաառաջին տողում ավելացնում ենք գլոբալ ներմուծում, որ ոչ մի սփեյսի սխալ չլինի
+          # 2. Ուղղում ենք ֆայլը՝ բացառելով Windows-ի անտեսանելի BOM սիմվոլները
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
-          with open(file_path, 'r', encoding='utf-8') as f:
+          
+          with open(file_path, 'r', encoding='utf-8-sig') as f:
               content = f.read()
           
-          # Ավելացնում ենք մաքուր init python բլոկ հենց ֆայլի սկզբում՝ առանց տեղաշարժերի խնդրի
           patch = 'init -999 python:\n    import renios\n    import sys\n    sys.modules[\"renios\"] = renios\n\n'
           
           if 'init -999 python:' not in content:
-              with open(file_path, 'w', encoding='utf-8') as f:
-                  f.write(patch + content)
-          print('RenPy iOS global patch injected successfully!')
+              full_content = patch + content
+              # Գրում ենք որպես binary (wb)՝ ստույգ utf-8-ով, որ BOM չավելանա
+              with open(file_path, 'wb') as f:
+                  f.write(full_content.encode('utf-8'))
+          print('RenPy iOS global patch injected with clean UTF-8!')
           "
 
       - name: Build iOS App
