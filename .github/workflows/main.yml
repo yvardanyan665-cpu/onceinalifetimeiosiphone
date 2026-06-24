@@ -10,7 +10,6 @@ jobs:
 
       - name: Install Ren'Py SDK
         run: |
-          # 1. Քաշում ենք միայն Ren'Py SDK-ն՝ առանց ավելորդ pip-երի
           python3 -c "
           import urllib.request
           import sys
@@ -22,24 +21,30 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Bypass RenPy iOS Icon Bug
+      - name: Bypass RenPy iOS Icon Bug cleanly
         run: |
           # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
           rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Փոխարինում ենք սխալ կանչերը մաքուր 'pass'-ով, որ Ren'Py-ն անցնի առաջ
+          # 2. Ուղղակիորեն չեզոքացնում ենք սխալ ֆունկցիան՝ սարքելով այն comment (#)
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
           with open(file_path, 'r', encoding='utf-8-sig') as f:
               content = f.read()
           
-          # Չեզոքացնում ենք սխալ տողի բոլոր հնարավոր տարբերակները
-          content = content.replace('renios.image.generate(source, destination, scale)', '    pass')
-          content = content.replace('launcher.game.renios.image.generate(source, destination, scale)', '    pass')
+          # Գտնում ենք սխալ ֆունկցիայի սկիզբը
+          old_func = 'def ios_image(p, source, destination, scale, target):'
           
-          with open(file_path, 'wb') as f:
-              f.write(content.encode('utf-8'))
-          print('RenPy icon generation successfully bypassed!')
+          # Սարքում ենք նոր մաքուր ֆունկցիա՝ 0 սփեյսով, իսկ հինը չեզոքացնում ենք
+          new_func = 'def ios_image(p, source, destination, scale, target):\n    pass\n#def ios_image_hidden(p, source, destination, scale, target):'
+          
+          if old_func in content:
+              content = content.replace(old_func, new_func)
+              with open(file_path, 'wb') as f:
+                  f.write(content.encode('utf-8'))
+              print('RenPy icon function bypassed by redefining it cleanly!')
+          else:
+              print('Target function not found or already patched.')
           "
 
       - name: Build iOS App
