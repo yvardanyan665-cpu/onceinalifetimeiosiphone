@@ -21,11 +21,10 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Precise Patch RenPy iOS Bug & Headless Fix
+      - name: Precise Patch RenPy iOS Bug
         run: |
           # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
           rm -f renpy-sdk/launcher/game/ios.rpyc
-          rm -f renpy-sdk/launcher/game/project.rpyc
           
           # 2. Հեռացնում ենք renios-ի սխալ տողը ios.rpy-ից
           python3 -c "
@@ -35,26 +34,6 @@ jobs:
           clean_lines = [l for l in lines if 'renios.image.generate' not in l and 'launcher.game.renios' not in l]
           with open(file_path, 'wb') as f:
               f.write(''.join(clean_lines).encode('utf-8'))
-          "
-          
-          # 3. Թույլ չենք տալիս, որ project.py-ը ֆիզիկապես միացնի խաղի պատուհանը (կանխում ենք Invalid window-ը)
-          python3 -c "
-          file_path = 'renpy-sdk/launcher/game/project.rpy'
-          with open(file_path, 'r', encoding='utf-8-sig') as f:
-              lines = f.readlines()
-          
-          clean_proj_lines = []
-          for line in lines:
-              if 'self.launch(' in line:
-                  # Փոխարինում ենք խաղի միացումը դատարկ տողով (pass), որ էկրան չուզի, բայց տվյալները մնան
-                  indent = len(line) - len(line.lstrip())
-                  clean_proj_lines.append(line[:indent] + 'pass # Bypassed game launch\n')
-                  print('Bypassed self.launch in project.rpy!')
-              else:
-                  clean_proj_lines.append(line)
-          
-          with open(file_path, 'wb') as f:
-              f.write(''.join(clean_proj_lines).encode('utf-8'))
           "
 
       - name: Prepare and Normalize Game Directory
@@ -71,8 +50,39 @@ jobs:
           cp -R mygame renpy-sdk/mygame
           echo "Game directory normalized to renpy-sdk/mygame"
 
+      - name: Inject Fake Build Data (Bypass Launch)
+        run: |
+          # Ինժեկտ ենք անում այն տվյալները, որոնք Ren'Py-ն ուզում է ստանալ խաղը միացնելուց
+          python3 -c "
+          import json
+          import os
+          
+          # Պատրաստում ենք մինիմալ dump ֆայլը
+          dump_data = {
+              'build': {
+                  'directory_name': 'mygame',
+                  'executable_name': 'mygame',
+                  'include_update': False,
+                  'patches': [],
+                  'documentation_extensions': ['txt', 'html'],
+                  'destination': 'build',
+                  'renpy': True
+              }
+          }
+          
+          # Ստեղծում ենք Ren'Py-ի ներքին տվյալների պապկան
+          os.makedirs('renpy-sdk/mygame/game/saves', exist_ok=True)
+          
+          # Գրում ենք թե՛ խաղի պապկայի մեջ, թե՛ Ren'Py-ի ժամանակավոր կեշի մեջ
+          with open('renpy-sdk/mygame/game/saves/navigation.json', 'w') as f:
+              json.dump(dump_data, f)
+              
+          print('Fake project build data successfully injected!')
+          "
+
       - name: Populate iOS Project
         run: |
+          # Քանի որ տվյալները ներարկված են, փորձում ենք անցնել առաջ
           export SDL_VIDEODRIVER=dummy
           export SDL_AUDIODRIVER=dummy
           export RENPY_HEADLESS=1
