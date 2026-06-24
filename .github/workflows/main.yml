@@ -21,11 +21,10 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Precise Patch RenPy iOS Bug & Hardcore Headless Bypass
+      - name: Hardcore Pygame Display Mock & Precise Patch
         run: |
           # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
           rm -f renpy-sdk/launcher/game/ios.rpyc
-          rm -f renpy-sdk/launcher/game/project.rpyc
           
           # 2. Հեռացնում ենք renios-ի սխալ տողը ios.rpy-ից
           python3 -c "
@@ -37,23 +36,30 @@ jobs:
               f.write(''.join(clean_lines).encode('utf-8'))
           "
           
-          # 3. Ուղղակիորեն փոխում ենք project.rpy-ի launch ֆունկցիան, որ ստիպողաբար True տա ու խաղը չմիացնի
+          # 3. Ինժեկտ ենք անում կոդ project.rpy-ի ամենավերևում, որը կպակասեցնի/կեղծի pygame-ի էկրանի ստեղծումը
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/project.rpy'
           with open(file_path, 'r', encoding='utf-8-sig') as f:
               content = f.read()
           
-          # Գտնում ենք launch ֆունկցիայի սկիզբն ու հենց առաջին տողում ստիպում ենք, որ Return True անի
-          old_func = 'def launch(self, args, wait=False, present=True):'
-          new_func = 'def launch(self, args, wait=False, present=True):\n        return True # Forced Headless Bypass'
+          # Ստեղծում ենք Mock դիսփլեյ, որ Invalid window երբեք չլինի
+          mock_code = '''
+          import pygame
+          class MockSurface(object):
+              def get_size(self): return (1280, 720)
+              def get_rect(self): return pygame.Rect(0, 0, 1280, 720)
+              def convert(self): return self
+              def convert_alpha(self): return self
+              def fill(self, *args, **kwargs): pass
+          def fake_set_mode(*args, **kwargs):
+              return MockSurface()
+          pygame.display.set_mode = fake_set_mode
+          '''
           
-          if old_func in content:
-              content = content.replace(old_func, new_func)
-              with open(file_path, 'wb') as f:
-                  f.write(content.encode('utf-8'))
-              print('Hardcore launch bypass applied successfully!')
-          else:
-              print('ERROR: Could not find launch function configuration!')
+          # Դնում ենք ֆայլի հենց սկզբում
+          with open(file_path, 'w', encoding='utf-8') as f:
+              f.write(mock_code + '\n' + content)
+          print('Pygame display successfully mocked at runtime!')
           "
 
       - name: Prepare and Normalize Game Directory
