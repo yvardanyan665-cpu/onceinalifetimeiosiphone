@@ -23,25 +23,22 @@ jobs:
 
       - name: Fix RenPy iOS Bug and Clear Cache
         run: |
-          # 1. Ջնջում ենք հին կոմպիլյացիոն կեշը, որ ստիպենք նորից կարդալ կոդը
+          # 1. Մաքրում ենք հին կեշերը
           rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Ուղղակի ներմուծում ենք renios-ը հենց ֆունկցիայի ներսում, որ հաստատ տեսնի
+          # 2. Ֆայլի ամենաառաջին տողում ավելացնում ենք գլոբալ ներմուծում, որ ոչ մի սփեյսի սխալ չլինի
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
           with open(file_path, 'r', encoding='utf-8') as f:
-              lines = f.readlines()
+              content = f.read()
           
-          new_lines = []
-          for line in lines:
-              new_lines.append(line)
-              if 'def ios_image' in line:
-                  # Ֆունկցիայի հենց սկզբում ավելացնում ենք import renios
-                  new_lines.append('    import renios\n')
+          # Ավելացնում ենք մաքուր init python բլոկ հենց ֆայլի սկզբում՝ առանց տեղաշարժերի խնդրի
+          patch = 'init -999 python:\n    import renios\n    import sys\n    sys.modules[\"renios\"] = renios\n\n'
           
-          with open(file_path, 'w', encoding='utf-8') as f:
-              f.writelines(new_lines)
-          print('RenPy iOS cache cleared and patch injected directly into functions!')
+          if 'init -999 python:' not in content:
+              with open(file_path, 'w', encoding='utf-8') as f:
+                  f.write(patch + content)
+          print('RenPy iOS global patch injected successfully!')
           "
 
       - name: Build iOS App
