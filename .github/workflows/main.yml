@@ -21,18 +21,27 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Fix RenPy iOS Bug
+      - name: Fix RenPy iOS Bug and Clear Cache
         run: |
-          # Ուղղում ենք Ren'Py-ի սխալը՝ ավելացնելով 'import renios' իրենց ֆայլի մեջ
+          # 1. Ջնջում ենք հին կոմպիլյացիոն կեշը, որ ստիպենք նորից կարդալ կոդը
+          rm -f renpy-sdk/launcher/game/ios.rpyc
+          
+          # 2. Ուղղակի ներմուծում ենք renios-ը հենց ֆունկցիայի ներսում, որ հաստատ տեսնի
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
           with open(file_path, 'r', encoding='utf-8') as f:
-              content = f.read()
-          if 'import renios' not in content:
-              content = 'init python:\n    import renios\n' + content
-              with open(file_path, 'w', encoding='utf-8') as f:
-                  f.write(content)
-          print('RenPy iOS bug patched successfully!')
+              lines = f.readlines()
+          
+          new_lines = []
+          for line in lines:
+              new_lines.append(line)
+              if 'def ios_image' in line:
+                  # Ֆունկցիայի հենց սկզբում ավելացնում ենք import renios
+                  new_lines.append('    import renios\n')
+          
+          with open(file_path, 'w', encoding='utf-8') as f:
+              f.writelines(new_lines)
+          print('RenPy iOS cache cleared and patch injected directly into functions!')
           "
 
       - name: Build iOS App
