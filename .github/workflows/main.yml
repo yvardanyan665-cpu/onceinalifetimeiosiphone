@@ -13,27 +13,25 @@ jobs:
           curl -O https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip
           unzip -q renpy-8.3.3-sdk.zip
           mv renpy-8.3.3-sdk renpy-sdk
+          # Սարքում ենք ֆայլերը գործարկելի
+          chmod +x renpy-sdk/renpy.py
 
       - name: Build Game (Headless Mode)
         run: |
-          # Գտնում ենք 'game' պապկան
           GAME_PATH=$(find . -type d -name "game" ! -path "*/renpy-sdk/*" | head -n 1)
           PROJECT_DIR=$(dirname "$GAME_PATH")
           
-          # Ամենակարևորը. կանչում ենք renpy.py-ը անմիջապես, ոչ թե launcher-ը
-          # Սա չի բացում ոչ մի պատուհան (Invalid window սխալ չի լինի)
-          ./renpy-sdk/renpy.py "$PROJECT_DIR" distribute --package ios --destination ./ios-build
+          # Աշխատեցնում ենք python3-ի միջոցով՝ շրջանցելով permission խնդիրը
+          python3 renpy-sdk/renpy.py "$PROJECT_DIR" distribute --package ios --destination ./ios-build
 
       - name: Compile Xcode to IPA
         run: |
-          # Գտնում ենք պրոյեկտը
           XCODE_PROJ=$(find ios-build -name "*.xcodeproj" | head -n 1)
           if [ -z "$XCODE_PROJ" ]; then echo "Project not found"; exit 1; fi
           
           cd "$(dirname "$XCODE_PROJ")"
           xcodebuild -scheme RenPyGame -configuration Release -sdk iphoneos PACKAGE_TYPE=ipa CODE_SIGNING_ALLOWED=NO || true
           
-          # Փաթեթավորում
           mkdir -p ../../output/Payload
           cp -R build/Release-iphoneos/*.app ../../output/Payload/ 2>/dev/null || true
           cd ../../output
