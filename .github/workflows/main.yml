@@ -26,33 +26,47 @@ jobs:
           # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
           rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Կարդում ենք օրիգինալ ֆայլը և հեռացնում միայն սխալ տողերը
+          # 2. Հեռացնում ենք renios-ի սխալ տողը
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
-          
           with open(file_path, 'r', encoding='utf-8-sig') as f:
               lines = f.readlines()
           
           clean_lines = []
           for line in lines:
-              # Եթե տողի մեջ կա renios-ի կանչը, այն ուղղակի բաց ենք թողնում (ջնջում ենք)
               if 'renios.image.generate' in line or 'launcher.game.renios' in line:
-                  print('Removing broken line:', line.strip())
                   continue
               clean_lines.append(line)
           
           with open(file_path, 'wb') as f:
               f.write(''.join(clean_lines).encode('utf-8'))
-          print('Precise patch applied. Original commands preserved!')
+          print('Precise patch applied!')
           "
 
-      - name: Build iOS App
+      - name: Populate iOS Project
         run: |
+          # Ստեղծում ենք iOS-ի Xcode պրոյեկտը 'build' պապկայի մեջ
           ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame build
-          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_build mygame build
+
+      - name: Compile Xcode to IPA
+        run: |
+          # Մտնում ենք ստեղծված Xcode պրոյեկտի մեջ ու հավաքում այն
+          cd build/mygame-ios
+          xcodebuild -project RenPyGame.xcodeproj -scheme RenPyGame -configuration Release -sdk iphoneos PACKAGE_TYPE=ipa CODE_SIGNING_ALLOWED=NO
+          
+          # Պատրաստի ֆայլերը տեղափոխում ենք գլխավոր build պապկա
+          mkdir -p ../output
+          mv build/Release-iphoneos/*.app ../output/ || true
+          # Քանի որ սիմուլյատորի/առանց սերտիֆիկատի build է, սարքում ենք zip/ipa տարբերակը
+          cd ../output
+          mkdir Payload
+          mv *.app Payload/
+          zip -r ../game.ipa Payload
+          cd ../..
+          mv build/game.ipa ./
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: game-ipa
-          path: build/*.ipa
+          path: game.ipa
