@@ -55,24 +55,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: game-ipa
-          path: build/*.ipa          init python:
-              def ios_populate(p, preview, destination):
-                  pass
-              def ios_image(p, source, destination, scale, target):
-                  pass
-          '''
-          with open('renpy-sdk/launcher/game/ios.rpy', 'w', encoding='utf-8') as f:
-              f.write(code)
-          print('RenPy iOS bug completely removed via clean Python file overwrite!')
-          "
-
-      - name: Build iOS App
-        run: |
-          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame build
-          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_build mygame build
-
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: game-ipa
           path: build/*.ipa
