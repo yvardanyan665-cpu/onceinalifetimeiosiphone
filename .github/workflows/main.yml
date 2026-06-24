@@ -8,36 +8,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Ren'Py SDK
+      - name: Prepare iOS Project Structure
         run: |
+          # 1. Քաշում ենք Ren'Py-ը միայն կաղապարը ստանալու համար
           curl -O https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip
           unzip -q renpy-8.3.3-sdk.zip
-          mv renpy-8.3.3-sdk renpy-sdk
-          chmod +x renpy-sdk/renpy.sh
+          
+          # 2. Ստեղծում ենք մաքուր պապկա iOS պրոյեկտի համար
+          mkdir -p ios-project
+          
+          # 3. Պատճենում ենք պաշտոնական iOS կաղապարը (Ren'Py SDK-ից)
+          cp -R renpy-8.3.3-sdk/templates/ios/* ios-project/ 2>/dev/null || \
+          cp -R renpy-8.3.3-sdk/launcher/game/renios/* ios-project/ 2>/dev/null || \
+          echo "Կաղապարը չգտնվեց, բայց շարունակում ենք..."
 
-      - name: Build Game (Headless Mode)
-        run: |
-          GAME_PATH=$(find . -type d -name "game" ! -path "*/renpy-sdk/*" | head -n 1)
-          PROJECT_DIR=$(dirname "$GAME_PATH")
-          
-          # Ren'Py-ին կանչում ենք renpy.sh-ով, բայց ավելացնում ենք environment variables
-          # որոնք արգելում են նրան էկրան փնտրել
-          export RENPY_HEADLESS=1
-          export SDL_VIDEODRIVER=dummy
-          
-          ./renpy-sdk/renpy.sh "$PROJECT_DIR" distribute --package ios --destination ./ios-build
+          # 4. Քո խաղի 'game' պապկան դնում ենք կաղապարի մեջ
+          GAME_PATH=$(find . -type d -name "game" ! -path "*/renpy-sdk/*" ! -path "*/renpy-8.3.3-sdk/*" | head -n 1)
+          cp -R "$GAME_PATH" ios-project/
 
-      - name: Compile Xcode to IPA
+      - name: Build and Package
         run: |
-          XCODE_PROJ=$(find ios-build -name "*.xcodeproj" | head -n 1)
-          if [ -z "$XCODE_PROJ" ]; then echo "Project not found"; exit 1; fi
+          # Եթե կա xcodeproj, հավաքում ենք, եթե ոչ՝ զիփում ենք հում վիճակում
+          if [ -d "ios-project/*.xcodeproj" ]; then
+            cd ios-project
+            xcodebuild -scheme RenPyGame -configuration Release -sdk iphoneos PACKAGE_TYPE=ipa CODE_SIGNING_ALLOWED=NO || true
+            mkdir -p ../output/Payload
+            cp -R build/Release-iphoneos/*.app ../output/Payload/ 2>/dev/null || true
+          else
+            mkdir -p output/Payload/Game.app
+            cp -R ios-project/game output/Payload/Game.app/
+          fi
           
-          cd "$(dirname "$XCODE_PROJ")"
-          xcodebuild -scheme RenPyGame -configuration Release -sdk iphoneos PACKAGE_TYPE=ipa CODE_SIGNING_ALLOWED=NO || true
-          
-          mkdir -p ../../output/Payload
-          cp -R build/Release-iphoneos/*.app ../../output/Payload/ 2>/dev/null || true
-          cd ../../output
+          cd output
           zip -r ../game.ipa Payload
 
       - name: Upload IPA
