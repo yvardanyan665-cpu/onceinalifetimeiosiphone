@@ -8,8 +8,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Ren'Py SDK
+      - name: Install Ren'Py SDK & Tools
         run: |
+          # 1. Քաշում ենք Ren'Py SDK-ն
           python3 -c "
           import urllib.request
           import sys
@@ -21,12 +22,13 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Precise Patch RenPy iOS Bug
+      - name: Precise Patch RenPy iOS Bug & Disable Auto-Compile
         run: |
           # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
           rm -f renpy-sdk/launcher/game/ios.rpyc
+          rm -f renpy-sdk/launcher/game/distribute.rpyc
           
-          # 2. Հեռացնում ենք renios-ի սխալ տողը
+          # 2. Հեռացնում ենք renios-ի սխալ տողը ios.rpy-ից
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
           with open(file_path, 'r', encoding='utf-8-sig') as f:
@@ -40,12 +42,33 @@ jobs:
           
           with open(file_path, 'wb') as f:
               f.write(''.join(clean_lines).encode('utf-8'))
-          print('Precise patch applied!')
+          "
+          
+          # 3. Խաբում ենք Ren'Py-ին, որ խաղը լոնչ չանի ստուգման համար (կանխում ենք Invalid window-ը)
+          python3 -c "
+          file_path = 'renpy-sdk/launcher/game/distribute.rpy'
+          with open(file_path, 'r', encoding='utf-8-sig') as f:
+              content = f.read()
+          
+          # Գտնում ենք update_dump կանչը ու չեզոքացնում ենք այն
+          old_line = 'project.update_dump(force=True, gui=False, compile=project.data[\'force_recompile\'])'
+          new_line = '    # Bypassed update_dump\n    pass'
+          
+          if old_line in content:
+              content = content.replace(old_line, new_line)
+              with open(file_path, 'wb') as f:
+                  f.write(content.encode('utf-8'))
+              print('Auto-compile launch bypassed successfully!')
+          else:
+              # Եթե տողը մի փոքր այլ է, մենք ուղղակի կփոխարինենք ավելի կարճ տարբերակով
+              content = content.replace('project.update_dump', '# project.update_dump')
+              with open(file_path, 'wb') as f:
+                  f.write(content.encode('utf-8'))
+              print('Alternative patch applied for update_dump!')
           "
 
       - name: Prepare and Normalize Game Directory
         run: |
-          # Գտնում ենք իրական խաղի պապկան
           REAL_GAME_PATH=$(find . -maxdepth 3 -type d -name "game" ! -path "*renpy-sdk*" | head -n 1)
           REAL_PROJECT_DIR=$(dirname "$REAL_GAME_PATH")
           
@@ -58,14 +81,13 @@ jobs:
           cp -R mygame renpy-sdk/mygame
           echo "Game directory normalized to renpy-sdk/mygame"
 
-      - name: Populate iOS Project (Headless Mode)
+      - name: Populate iOS Project
         run: |
-          # Օգտագործում ենք dummy վիդեոդրայվեր, որ սերվերը էկրան չպահանջի
+          # Միացնում ենք վիրտուալ էկրանի բոլոր հնարավոր դրայվերները
           export SDL_VIDEODRIVER=dummy
           export SDL_AUDIODRIVER=dummy
           export RENPY_HEADLESS=1
           
-          # Կանչում ենք ստեղծման հրամանը
           ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame ./ios-build
 
       - name: Compile Xcode to IPA
