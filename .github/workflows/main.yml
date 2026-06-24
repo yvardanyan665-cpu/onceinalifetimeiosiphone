@@ -21,9 +21,22 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
+      - name: Fix RenPy iOS Bug
+        run: |
+          # Ուղղում ենք Ren'Py-ի սխալը՝ ավելացնելով 'import renios' իրենց ֆայլի մեջ
+          python3 -c "
+          file_path = 'renpy-sdk/launcher/game/ios.rpy'
+          with open(file_path, 'r', encoding='utf-8') as f:
+              content = f.read()
+          if 'import renios' not in content:
+              content = 'init python:\n    import renios\n' + content
+              with open(file_path, 'w', encoding='utf-8') as f:
+                  f.write(content)
+          print('RenPy iOS bug patched successfully!')
+          "
+
       - name: Build iOS App
         run: |
-          # Ուղղված հրամանները՝ ճիշտ արգումենտներով
           ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame build
           ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_build mygame build
 
