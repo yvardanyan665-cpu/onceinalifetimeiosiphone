@@ -8,29 +8,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Virtual Environment & Install Dependencies
+      - name: Install Ren'Py SDK
         run: |
-          # 1. Ստեղծում ենք վիրտուալ միջավայր
-          python3 -m venv venv
-          source venv/bin/activate
-          
-          # 2. Տեղադրում ենք անհրաժեշտ գրադարանը մեր նոր միջավայրում
-          pip install future
-          
-          # 3. Քաշում և տեղադրում ենք Ren'Py-ը
           curl -O https://www.renpy.org/dl/8.3.3/renpy-8.3.3-sdk.zip
           unzip -q renpy-8.3.3-sdk.zip
           mv renpy-8.3.3-sdk renpy-sdk
-          chmod +x renpy-sdk/renpy.py
+          chmod +x renpy-sdk/renpy.sh
 
       - name: Build Game (Headless Mode)
         run: |
-          source venv/bin/activate
           GAME_PATH=$(find . -type d -name "game" ! -path "*/renpy-sdk/*" | head -n 1)
           PROJECT_DIR=$(dirname "$GAME_PATH")
           
-          # Օգտագործում ենք վիրտուալ միջավայրի Python-ը
-          python renpy-sdk/renpy.py "$PROJECT_DIR" distribute --package ios --destination ./ios-build
+          # Ren'Py-ին կանչում ենք renpy.sh-ով, բայց ավելացնում ենք environment variables
+          # որոնք արգելում են նրան էկրան փնտրել
+          export RENPY_HEADLESS=1
+          export SDL_VIDEODRIVER=dummy
+          
+          ./renpy-sdk/renpy.sh "$PROJECT_DIR" distribute --package ios --destination ./ios-build
 
       - name: Compile Xcode to IPA
         run: |
