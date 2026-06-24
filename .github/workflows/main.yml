@@ -10,7 +10,6 @@ jobs:
 
       - name: Install Ren'Py SDK & Tools
         run: |
-          # 1. Քաշում ենք Ren'Py SDK-ն
           python3 -c "
           import urllib.request
           import sys
@@ -44,27 +43,24 @@ jobs:
               f.write(''.join(clean_lines).encode('utf-8'))
           "
           
-          # 3. Խաբում ենք Ren'Py-ին, որ խաղը լոնչ չանի ստուգման համար (կանխում ենք Invalid window-ը)
+          # 3. Չեզոքացնում ենք update_dump-ը՝ առանց սփեյսերը խախտելու (տողը սարքում ենք comment)
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/distribute.rpy'
           with open(file_path, 'r', encoding='utf-8-sig') as f:
-              content = f.read()
+              lines = f.readlines()
           
-          # Գտնում ենք update_dump կանչը ու չեզոքացնում ենք այն
-          old_line = 'project.update_dump(force=True, gui=False, compile=project.data[\'force_recompile\'])'
-          new_line = '    # Bypassed update_dump\n    pass'
+          clean_dist_lines = []
+          for line in lines:
+              if 'project.update_dump' in line:
+                  # Ուղղակի տողի սկզբում ավելացնում ենք #, սփեյսերը մնում են նույնությամբ
+                  indent = len(line) - len(line.lstrip())
+                  clean_dist_lines.append(line[:indent] + '# ' + line[indent:])
+                  print('Successfully commented out update_dump line!')
+              else:
+                  clean_dist_lines.append(line)
           
-          if old_line in content:
-              content = content.replace(old_line, new_line)
-              with open(file_path, 'wb') as f:
-                  f.write(content.encode('utf-8'))
-              print('Auto-compile launch bypassed successfully!')
-          else:
-              # Եթե տողը մի փոքր այլ է, մենք ուղղակի կփոխարինենք ավելի կարճ տարբերակով
-              content = content.replace('project.update_dump', '# project.update_dump')
-              with open(file_path, 'wb') as f:
-                  f.write(content.encode('utf-8'))
-              print('Alternative patch applied for update_dump!')
+          with open(file_path, 'wb') as f:
+              f.write(''.join(clean_dist_lines).encode('utf-8'))
           "
 
       - name: Prepare and Normalize Game Directory
@@ -83,7 +79,6 @@ jobs:
 
       - name: Populate iOS Project
         run: |
-          # Միացնում ենք վիրտուալ էկրանի բոլոր հնարավոր դրայվերները
           export SDL_VIDEODRIVER=dummy
           export SDL_AUDIODRIVER=dummy
           export RENPY_HEADLESS=1
@@ -102,10 +97,8 @@ jobs:
           echo "Moving to Xcode project directory: $XCODE_PROJ_DIR"
           cd "$XCODE_PROJ_DIR"
           
-          # Հավաքում ենք Xcode պրոյեկտը Release տարբերակով
           xcodebuild -project RenPyGame.xcodeproj -scheme RenPyGame -configuration Release -sdk iphoneos PACKAGE_TYPE=ipa CODE_SIGNING_ALLOWED=NO
           
-          # Պատրաստում ենք վերջնական .ipa ֆայլը
           mkdir -p ../../output/Payload
           cp -R build/Release-iphoneos/*.app ../../output/Payload/ || cp -R build/UninstalledProducts/iphoneos/*.app ../../output/Payload/ || true
           
