@@ -43,17 +43,27 @@ jobs:
           print('Precise patch applied!')
           "
 
+      - name: Prepare and Normalize Game Directory
+        run: |
+          # Գտնում ենք, թե որտեղ է գտնվում իրական խաղի 'game' պապկան
+          REAL_GAME_PATH=$(find . -maxdepth 3 -type d -name "game" ! -path "*renpy-sdk*" | head -n 1)
+          REAL_PROJECT_DIR=$(dirname "$REAL_GAME_PATH")
+          
+          echo "Real project path found at: $REAL_PROJECT_DIR"
+          
+          # Որպեսզի անունների տարբերություն չլինի, պրոյեկտը պատճենում ենք 'mygame' անունով
+          mkdir -p mygame
+          cp -R "$REAL_PROJECT_DIR"/* mygame/ 2>/dev/null || true
+          
+          # Տեղափոխում ենք այն Ren'Py SDK-ի կողքը, որ ինքը միանգամից տեսնի
+          rm -rf renpy-sdk/mygame
+          cp -R mygame renpy-sdk/mygame
+          echo "Game directory normalized to renpy-sdk/mygame"
+
       - name: Populate iOS Project
         run: |
-          # Ավտոմատ գտնում ենք քո խաղի պապկայի անունը (որտեղ կա options.rpy կամ script.rpy)
-          GAME_DIR=$(find . -maxdepth 3 -type d -name "game" ! -path "*renpy-sdk*" | head -n 1 | xargs dirname | xargs basename)
-          if [ -z "$GAME_DIR" ] || [ "$GAME_DIR" = "." ]; then
-            GAME_DIR=$(basename "$GITHUB_REPOSITORY")
-          fi
-          echo "Detected game directory name: $GAME_DIR"
-          
-          # Ստեղծում ենք iOS պրոյեկտը Ren'Py-ի սեփական build պապկայում
-          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate "$GAME_DIR" ./ios-build
+          # Հիմա արդեն վստահ կանչում ենք 'mygame' անունով, քանի որ այն հաստատ գոյություն ունի
+          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame ./ios-build
 
       - name: Compile Xcode to IPA
         run: |
@@ -61,15 +71,14 @@ jobs:
           XCODE_PROJ_DIR=$(find ios-build -type d -name "*.xcodeproj" | head -n 1 | xargs dirname)
           
           if [ -z "$XCODE_PROJ_DIR" ]; then
-            echo "ERROR: Xcode project was not generated! Listing ios-build contents:"
-            ls -R ios-build || true
+            echo "ERROR: Xcode project was not generated!"
             exit 1
           fi
           
           echo "Moving to Xcode project directory: $XCODE_PROJ_DIR"
           cd "$XCODE_PROJ_DIR"
           
-          # Հավաքում ենք Xcode պրոյեկտը
+          # Հավաքում ենք Xcode պրոյեկտը Release տարբերակով
           xcodebuild -project RenPyGame.xcodeproj -scheme RenPyGame -configuration Release -sdk iphoneos PACKAGE_TYPE=ipa CODE_SIGNING_ALLOWED=NO
           
           # Պատրաստում ենք վերջնական .ipa ֆայլը
