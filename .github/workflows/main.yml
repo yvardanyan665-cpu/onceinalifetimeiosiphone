@@ -36,30 +36,28 @@ jobs:
               f.write(''.join(clean_lines).encode('utf-8'))
           "
           
-          # 3. Ինժեկտ ենք անում կոդ project.rpy-ի ամենավերևում, որը կպակասեցնի/կեղծի pygame-ի էկրանի ստեղծումը
+          # 3. Ինժեկտ ենք անում կոդը ճիշտ Ren'Py սինտաքսով (init python:)
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/project.rpy'
           with open(file_path, 'r', encoding='utf-8-sig') as f:
               content = f.read()
           
-          # Ստեղծում ենք Mock դիսփլեյ, որ Invalid window երբեք չլինի
-          mock_code = '''
-          import pygame
-          class MockSurface(object):
-              def get_size(self): return (1280, 720)
-              def get_rect(self): return pygame.Rect(0, 0, 1280, 720)
-              def convert(self): return self
-              def convert_alpha(self): return self
-              def fill(self, *args, **kwargs): pass
-          def fake_set_mode(*args, **kwargs):
-              return MockSurface()
-          pygame.display.set_mode = fake_set_mode
-          '''
+          mock_code = '''init python:
+    import pygame
+    class MockSurface(object):
+        def get_size(self): return (1280, 720)
+        def get_rect(self): return pygame.Rect(0, 0, 1280, 720)
+        def convert(self): return self
+        def convert_alpha(self): return self
+        def fill(self, *args, **kwargs): pass
+    def fake_set_mode(*args, **kwargs):
+        return MockSurface()
+    pygame.display.set_mode = fake_set_mode
+'''
           
-          # Դնում ենք ֆայլի հենց սկզբում
           with open(file_path, 'w', encoding='utf-8') as f:
               f.write(mock_code + '\n' + content)
-          print('Pygame display successfully mocked at runtime!')
+          print('Pygame display successfully mocked inside init python block!')
           "
 
       - name: Prepare and Normalize Game Directory
