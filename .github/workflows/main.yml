@@ -50,17 +50,20 @@ jobs:
 
       - name: Compile Xcode to IPA
         run: |
-          # Մտնում ենք ստեղծված Xcode պրոյեկտի մեջ ու հավաքում այն
-          cd build/mygame-ios
+          # Ավտոմատ գտնում ենք, թե որտեղ է գտնվում Xcode պրոյեկտը build-ի ներսում
+          XCODE_PROJ_DIR=$(find build -type d -name "*.xcodeproj" | head -n 1 | xargs dirname)
+          echo "Found Xcode project directory: $XCODE_PROJ_DIR"
+          
+          cd "$XCODE_PROJ_DIR"
+          
+          # Հավաքում ենք պրոյեկտը Release տարբերակով
           xcodebuild -project RenPyGame.xcodeproj -scheme RenPyGame -configuration Release -sdk iphoneos PACKAGE_TYPE=ipa CODE_SIGNING_ALLOWED=NO
           
-          # Պատրաստի ֆայլերը տեղափոխում ենք գլխավոր build պապկա
-          mkdir -p ../output
-          mv build/Release-iphoneos/*.app ../output/ || true
-          # Քանի որ սիմուլյատորի/առանց սերտիֆիկատի build է, սարքում ենք zip/ipa տարբերակը
+          # Պատրաստում ենք վերջնական .ipa ֆայլը
+          mkdir -p ../output/Payload
+          cp -R build/Release-iphoneos/*.app ../output/Payload/ || cp -R build/UninstalledProducts/iphoneos/*.app ../output/Payload/ || true
+          
           cd ../output
-          mkdir Payload
-          mv *.app Payload/
           zip -r ../game.ipa Payload
           cd ../..
           mv build/game.ipa ./
