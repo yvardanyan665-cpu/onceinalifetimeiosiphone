@@ -21,20 +21,41 @@ jobs:
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
 
-      - name: Force Bypass RenPy iOS Bug with Python
+      - name: Precise Patch RenPy iOS Bug
         run: |
           # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
           rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Զրոյից, մաքուր Python-ով ստեղծում ենք նոր ios.rpy ֆայլը
+          # 2. Կարդում ենք օրիգինալ ֆայլը և հեռացնում միայն սխալ տողերը
           python3 -c "
-          code = '''init python in ios:
-              def ios_populate_command():
-                  pass
-              def ios_build_command():
-                  pass
+          file_path = 'renpy-sdk/launcher/game/ios.rpy'
           
-          init python:
+          with open(file_path, 'r', encoding='utf-8-sig') as f:
+              lines = f.readlines()
+          
+          clean_lines = []
+          for line in lines:
+              # Եթե տողի մեջ կա renios-ի կանչը, այն ուղղակի բաց ենք թողնում (ջնջում ենք)
+              if 'renios.image.generate' in line or 'launcher.game.renios' in line:
+                  print('Removing broken line:', line.strip())
+                  continue
+              clean_lines.append(line)
+          
+          with open(file_path, 'wb') as f:
+              f.write(''.join(clean_lines).encode('utf-8'))
+          print('Precise patch applied. Original commands preserved!')
+          "
+
+      - name: Build iOS App
+        run: |
+          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame build
+          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_build mygame build
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: game-ipa
+          path: build/*.ipa          init python:
               def ios_populate(p, preview, destination):
                   pass
               def ios_image(p, source, destination, scale, target):
