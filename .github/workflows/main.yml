@@ -45,28 +45,40 @@ jobs:
 
       - name: Populate iOS Project
         run: |
-          # Ստեղծում ենք iOS-ի Xcode պրոյեկտը 'build' պապկայի մեջ
-          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate mygame build
+          # Ավտոմատ գտնում ենք քո խաղի պապկայի անունը (որտեղ կա options.rpy կամ script.rpy)
+          GAME_DIR=$(find . -maxdepth 3 -type d -name "game" ! -path "*renpy-sdk*" | head -n 1 | xargs dirname | xargs basename)
+          if [ -z "$GAME_DIR" ] || [ "$GAME_DIR" = "." ]; then
+            GAME_DIR=$(basename "$GITHUB_REPOSITORY")
+          fi
+          echo "Detected game directory name: $GAME_DIR"
+          
+          # Ստեղծում ենք iOS պրոյեկտը Ren'Py-ի սեփական build պապկայում
+          ./renpy-sdk/renpy.sh renpy-sdk/launcher ios_populate "$GAME_DIR" ./ios-build
 
       - name: Compile Xcode to IPA
         run: |
-          # Ավտոմատ գտնում ենք, թե որտեղ է գտնվում Xcode պրոյեկտը build-ի ներսում
-          XCODE_PROJ_DIR=$(find build -type d -name "*.xcodeproj" | head -n 1 | xargs dirname)
-          echo "Found Xcode project directory: $XCODE_PROJ_DIR"
+          # Գտնում ենք Xcode պրոյեկտը ios-build-ի ներսում
+          XCODE_PROJ_DIR=$(find ios-build -type d -name "*.xcodeproj" | head -n 1 | xargs dirname)
           
+          if [ -z "$XCODE_PROJ_DIR" ]; then
+            echo "ERROR: Xcode project was not generated! Listing ios-build contents:"
+            ls -R ios-build || true
+            exit 1
+          fi
+          
+          echo "Moving to Xcode project directory: $XCODE_PROJ_DIR"
           cd "$XCODE_PROJ_DIR"
           
-          # Հավաքում ենք պրոյեկտը Release տարբերակով
+          # Հավաքում ենք Xcode պրոյեկտը
           xcodebuild -project RenPyGame.xcodeproj -scheme RenPyGame -configuration Release -sdk iphoneos PACKAGE_TYPE=ipa CODE_SIGNING_ALLOWED=NO
           
           # Պատրաստում ենք վերջնական .ipa ֆայլը
-          mkdir -p ../output/Payload
-          cp -R build/Release-iphoneos/*.app ../output/Payload/ || cp -R build/UninstalledProducts/iphoneos/*.app ../output/Payload/ || true
+          mkdir -p ../../output/Payload
+          cp -R build/Release-iphoneos/*.app ../../output/Payload/ || cp -R build/UninstalledProducts/iphoneos/*.app ../../output/Payload/ || true
           
-          cd ../output
+          cd ../../output
           zip -r ../game.ipa Payload
-          cd ../..
-          mv build/game.ipa ./
+          cd ..
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
