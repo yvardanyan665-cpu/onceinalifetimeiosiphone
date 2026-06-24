@@ -8,8 +8,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Ren'Py SDK
+      - name: Install Ren'Py SDK & Dependencies
         run: |
+          # 1. Քաշում ենք Ren'Py SDK-ն
           python3 -c "
           import urllib.request
           import sys
@@ -20,30 +21,32 @@ jobs:
           "
           unzip -q renpy.zip
           mv renpy-8.3.3-sdk renpy-sdk
+          
+          # 2. Տեղադրում ենք Pillow նկարների հետ աշխատելու համար
+          pip3 install Pillow
 
-      - name: Hard Patch RenPy iOS Bug
+      - name: Bypass RenPy iOS Icon Bug
         run: |
           # 1. Մաքրում ենք հին կոմպիլյացիոն կեշը
           rm -f renpy-sdk/launcher/game/ios.rpyc
           
-          # 2. Ուղղակիորեն փոխարինում ենք սխալ կանչը ճիշտ ներքին կանչով
+          # 2. Ջնջում ենք ios.rpy ֆայլի միջից այն տողը, որը կանչում է սխալ մոդուլը
           python3 -c "
           file_path = 'renpy-sdk/launcher/game/ios.rpy'
-          
           with open(file_path, 'r', encoding='utf-8-sig') as f:
-              content = f.read()
+              lines = f.readlines()
           
-          # Փոխարինում ենք renios.image.generate-ը ուղիղ լոնչերի մեջ եղած մոդուլի հասցեով
-          old_line = 'renios.image.generate(source, destination, scale)'
-          new_line = 'launcher.game.renios.image.generate(source, destination, scale)'
-          
-          if old_line in content:
-              content = content.replace(old_line, new_line)
-              with open(file_path, 'wb') as f:
-                  f.write(content.encode('utf-8'))
-              print('RenPy iOS bug hot-fixed successfully!')
-          else:
-              print('Target line not found or already patched.')
+          # Փոխարինում ենք սխալ տողը 'pass'-ով, որ ոչինչ չանի ու առաջ անցնի
+          new_lines = []
+          for line in lines:
+              if 'renios.image.generate' in line or 'launcher.game.renios.image.generate' in line:
+                  new_lines.append('    pass\n')
+              else:
+                  new_lines.append(line)
+                  
+          with open(file_path, 'wb') as f:
+              f.write(''.join(new_lines).encode('utf-8'))
+          print('RenPy icon generation function bypassed!')
           "
 
       - name: Build iOS App
