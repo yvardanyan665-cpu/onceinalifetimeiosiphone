@@ -8,20 +8,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create Dummy iOS Structure
+      - name: Debug and Package
         run: |
-          # Ստեղծում ենք մաքուր հիմք, առանց Ren'Py-ի հին կաղապարներին դիպչելու
+          # 1. Ցույց տուր, թե ինչ կա այս պապկայում
+          ls -R
+          
+          # 2. Ստեղծում ենք IPA-ի կառուցվածքը
           mkdir -p output/Payload/Game.app
           
-          # Գտնում ենք 'game' պապկան
-          GAME_PATH=$(find . -type d -name "game" ! -path "*/renpy-sdk/*" | head -n 1)
+          # 3. Ուղղակի պատճենում ենք ամեն ինչ, եթե 'game' պապկա կա
+          if [ -d "game" ]; then
+            cp -R game/* output/Payload/Game.app/
+          else
+            # Եթե գլխավոր պապկայում 'game' չկա, պատճենում ենք այն, ինչ կա
+            cp -R * output/Payload/Game.app/ 2>/dev/null || true
+          fi
           
-          # Պատճենում ենք ֆայլերը
-          cp -R "$GAME_PATH" output/Payload/Game.app/
-          
-          # Ստեղծում ենք Info.plist, որ առանց դրա IPA-ն չի աշխատի
+          # 4. Ստեղծում ենք Info.plist
           echo '{"CFBundleIdentifier": "com.game.renpy", "CFBundleExecutable": "Game"}' > output/Payload/Game.app/Info.plist
           
+          # 5. Փաթեթավորում
           cd output
           zip -r ../game.ipa Payload
 
